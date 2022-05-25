@@ -3,7 +3,11 @@ import { Product } from "../../common/models";
 import { Link } from "react-router-dom";
 import authHeader from "../../features/authentication/AuthHeader";
 import axios from "axios";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+import { addToCart } from "../../common/slices/cartSlice";
+import { useDispatch } from "react-redux";
+import { Overlay, Tooltip } from "react-bootstrap";
+import { AiOutlineCheck } from 'react-icons/ai';
 
 
 interface IShopProductCard {
@@ -17,53 +21,86 @@ function addToWishList(productId){
       productId: productId
     },
       { headers: authHeader() }
-    ).then(response => {
+    ).then(_response => {
         return "Item added to wishlist!"
-      }).catch((error)=>{
+    }).catch((error)=>{
+      if(error.response!.status === 409){
         return "Item already exists in wishlist!"
-      })
+      }
+      return "Cannot add to wishlist";
+    })
   }
-  
+
 async function addToWL(productId){
   const y = await addToWishList(productId);
   return React.createElement("span", {class : "wishListNotice  youCanSeeMe"}, y);
 }
 
-export function ShopProductCard({ Product }: IShopProductCard) {
+export function ShopProductCard({ Product: product }: IShopProductCard) {
+
+  const dispatch = useDispatch();
+  const [show, setShow] = useState(false);
+  const target = useRef(null);
+
+  function handleAddtoCart(e) {
+    dispatch(addToCart(e.target.value));
+  }
+
   const [notice, setNotice] = useState(React.createElement("span", {class : "wishListNotice"}, "hey"))
   return (
-    <div style={{ height: "30rem" }}>
-      <Link to={`/shop-product/${Product?.id}` || ""} style={{ textDecoration: 'none' }}>
-        <div className=" card bg-black text-warning" style={{ height: "26rem", width: "18rem" }}>
+    <div id="shop-card" style={{ height: "28rem" }}>
+      <div className="card" style={{ height: "28rem", width: "18rem" }}>
+        <Link to={`/shop-product/${product?.id}` || ""} style={{ textDecoration: 'none' }}>
           <img
             className="testIMG"
-            src={Product?.imageURL}
-            alt="Card image cap"
+            src={product?.imageURL}
+            alt={product?.name}
           ></img>
           <div className="card-body">
-            <h1>{Product?.name || ""}</h1>
+            <h3>{product?.name || ""}</h3>
+            <p className="card-text">
+              {product?.description.length > 55?
+                product?.description.substring(0,50).concat("...")
+            :
+              product?.description
+            }</p>
 
-            <p className="card-text">{`${Product?.description || ""}`}</p>
-
-          </div>
-        </div>
-      </Link>
-      {JSON.stringify(authHeader()).length > 100 ? (
-        <div className=" card bg-black text-warning" style={{ height: "4rem", width: "18rem" }}>
-          
-          <button id="addToWishList" className="btn stretched-link  addToWishList" onClick={async () => {
-            setNotice(await addToWL(Product?.id));
-            setTimeout(() =>{setNotice(React.createElement("span", {class : "wishListNotice"}, "hey"))}, 5000);
-          }
-          }>Add To Wishlist
-          <div>{notice}</div>
-          </button>
-        </div>) : (
-        <Link to={`/shop-product/${Product?.id}` || ""} style={{ textDecoration: 'none' }}>
-          <div className=" card bg-black text-warning" style={{ height: "4rem", width: "18rem" }}>
           </div>
         </Link>
-      )}
+        
+        {JSON.stringify(authHeader()).length > 100 && (
+        <div className="card-footer">
+          <button
+            ref={target}
+            className="button orange-button addToCart"
+            value={product?.id}
+            onClick={(e) => {
+            setShow(!show);
+            setTimeout(() => { setShow(false) }, 2000);
+            handleAddtoCart(e)
+            }
+          }>
+            Add To Cart
+          </button>
+
+          <Overlay
+            target={target.current}
+            show={show}
+            placement="right">
+            <Tooltip id={`tooltip${product?.id}`}><AiOutlineCheck/></Tooltip>
+          </Overlay>
+
+          <button id="addToWishList" className="button yellow-button addToWishList" onClick={async () => {
+            setNotice(await addToWL(product?.id));
+            setTimeout(() =>{setNotice(React.createElement("span", {class : "wishListNotice"}, "hey"))}, 5000);
+          }}>
+            Add To Wishlist
+            <div>{notice}</div>
+          </button>
+        </div>
+        )}
+      </div>
+      
     </div>
   );
 }
